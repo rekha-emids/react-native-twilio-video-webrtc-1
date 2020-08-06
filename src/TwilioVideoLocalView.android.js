@@ -1,3 +1,4 @@
+
 /**
  * Component for Twilio Video local views.
  *
@@ -5,7 +6,10 @@
  *   Jonathan Chang <slycoder@gmail.com>
  */
 
-import { requireNativeComponent, View } from 'react-native'
+import {
+  requireNativeComponent,
+  View
+} from 'react-native'
 import React from 'react'
 
 const propTypes = {
@@ -14,7 +18,9 @@ const propTypes = {
 
 class TwilioVideoPreview extends React.Component {
   render () {
-    return <NativeTwilioVideoPreview {...this.props} />
+    return (
+      <NativeTwilioVideoPreview {...this.props} />
+    )
   }
 }
 

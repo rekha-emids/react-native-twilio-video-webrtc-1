@@ -8,7 +8,11 @@
 
 import { Component } from 'react'
 import PropTypes from 'prop-types'
-import { NativeModules, NativeEventEmitter, View } from 'react-native'
+import {
+  NativeModules,
+  NativeEventEmitter,
+  View
+} from 'react-native'
 
 const { TWVideoModule } = NativeModules
 
@@ -51,7 +55,7 @@ export default class extends Component {
     /**
      * Called when a new video track has been added
      *
-     * @param {{participant, track, enabled}}
+     * @param {{participant, track}}
      */
     onParticipantAddedVideoTrack: PropTypes.func,
     /**
@@ -60,18 +64,6 @@ export default class extends Component {
      * @param {{participant, track}}
      */
     onParticipantRemovedVideoTrack: PropTypes.func,
-    /**
-     * Called when a new data track has been added
-     *
-     * @param {{participant, track}}
-     */
-    onParticipantAddedDataTrack: PropTypes.func,
-    /**
-     * Called when a data track has been removed
-     *
-     * @param {{participant, track}}
-     */
-    onParticipantRemovedDataTrack: PropTypes.func,
     /**
      * Called when a new audio track has been added
      *
@@ -109,12 +101,6 @@ export default class extends Component {
      */
     onParticipantDisabledAudioTrack: PropTypes.func,
     /**
-     * Called when an dataTrack receives a message
-     *
-     * @param {{message}}
-     */
-    onDataTrackMessageReceived: PropTypes.func,
-    /**
      * Called when the camera has started
      *
      */
@@ -124,11 +110,6 @@ export default class extends Component {
      *
      */
     onCameraWasInterrupted: PropTypes.func,
-    /**
-     * Called when the camera interruption has ended
-     *
-     */
-    onCameraInterruptionEnded: PropTypes.func,
     /**
      * Called when the camera has stopped runing with an error
      *
@@ -148,10 +129,18 @@ export default class extends Component {
 
     this._subscriptions = []
     this._eventEmitter = new NativeEventEmitter(TWVideoModule)
+
+    this.setLocalVideoEnabled = this.setLocalVideoEnabled.bind(this)
+    this.setLocalAudioEnabled = this.setLocalAudioEnabled.bind(this)
+    this.flipCamera = this.flipCamera.bind(this)
+    this.connect = this.connect.bind(this)
+    this.disconnect = this.disconnect.bind(this)
+    this.setRemoteAudioPlayback = this.setRemoteAudioPlayback.bind(this)
   }
 
   componentWillMount () {
     this._registerEvents()
+    this._startLocalVideo()
     this._startLocalAudio()
   }
 
@@ -164,16 +153,8 @@ export default class extends Component {
   /**
    * Locally mute/ unmute all remote audio tracks from a given participant
    */
-  setRemoteAudioPlayback ({ participantSid, enabled }) {
+  setRemoteAudioPlayback ({participantSid, enabled}) {
     TWVideoModule.setRemoteAudioPlayback(participantSid, enabled)
-  }
-
-  setRemoteAudioEnabled (enabled) {
-    return Promise.resolve(enabled)
-  }
-
-  setBluetoothHeadsetConnected (enabled) {
-    return Promise.resolve(enabled)
   }
 
   /**
@@ -198,13 +179,6 @@ export default class extends Component {
   }
 
   /**
-   * Toggle audio setup from speaker (default) and headset
-   */
-  toggleSoundSetup (speaker) {
-    TWVideoModule.toggleSoundSetup(speaker)
-  }
-
-  /**
    * Get connection stats
    */
   getStats () {
@@ -215,10 +189,9 @@ export default class extends Component {
    * Connect to given room name using the JWT access token
    * @param  {String} roomName    The connecting room name
    * @param  {String} accessToken The Twilio's JWT access token
-   * @param  {String} encodingParameters Control Encoding config
    */
-  connect ({ roomName, accessToken, enableVideo = true, encodingParameters }) {
-    TWVideoModule.connect(accessToken, roomName, enableVideo, encodingParameters)
+  connect ({roomName, accessToken}) {
+    TWVideoModule.connect(accessToken, roomName)
   }
 
   /**
@@ -228,44 +201,9 @@ export default class extends Component {
     TWVideoModule.disconnect()
   }
 
-  /**
-   * Publish a local audio track
-   */
-  publishLocalAudio () {
-    TWVideoModule.publishLocalAudio()
-  }
-
-  /**
-   * Publish a local video track
-   */
-  publishLocalVideo () {
-    TWVideoModule.publishLocalVideo()
-  }
-
-  /**
-   * Unpublish a local audio track
-   */
-  unpublishLocalAudio () {
-    TWVideoModule.unpublishLocalAudio()
-  }
-
-  /**
-   * Unpublish a local video track
-   */
-  unpublishLocalVideo () {
-    TWVideoModule.unpublishLocalVideo()
-  }
-
-  /**
-   * SendString to datatrack
-   * @param  {String} message    The message string to send
-   */
-  sendString (message) {
-    TWVideoModule.sendString(message)
-  }
-
   _startLocalVideo () {
-    TWVideoModule.startLocalVideo()
+    const screenShare = this.props.screenShare || false
+    TWVideoModule.startLocalVideo(screenShare)
   }
 
   _stopLocalVideo () {
@@ -281,118 +219,62 @@ export default class extends Component {
   }
 
   _unregisterEvents () {
-    TWVideoModule.changeListenerStatus(false)
     this._subscriptions.forEach(e => e.remove())
     this._subscriptions = []
   }
 
   _registerEvents () {
-    TWVideoModule.changeListenerStatus(true)
     this._subscriptions = [
-      this._eventEmitter.addListener('roomDidConnect', data => {
-        if (this.props.onRoomDidConnect) {
-          this.props.onRoomDidConnect(data)
-        }
+      this._eventEmitter.addListener('roomDidConnect', (data) => {
+        if (this.props.onRoomDidConnect) { this.props.onRoomDidConnect(data) }
       }),
-      this._eventEmitter.addListener('roomDidDisconnect', data => {
-        if (this.props.onRoomDidDisconnect) {
-          this.props.onRoomDidDisconnect(data)
-        }
+      this._eventEmitter.addListener('roomDidDisconnect', (data) => {
+        if (this.props.onRoomDidDisconnect) { this.props.onRoomDidDisconnect(data) }
       }),
-      this._eventEmitter.addListener('roomDidFailToConnect', data => {
-        if (this.props.onRoomDidFailToConnect) {
-          this.props.onRoomDidFailToConnect(data)
-        }
+      this._eventEmitter.addListener('roomDidFailToConnect', (data) => {
+        if (this.props.onRoomDidFailToConnect) { this.props.onRoomDidFailToConnect(data) }
       }),
-      this._eventEmitter.addListener('roomParticipantDidConnect', data => {
-        if (this.props.onRoomParticipantDidConnect) {
-          this.props.onRoomParticipantDidConnect(data)
-        }
+      this._eventEmitter.addListener('roomParticipantDidConnect', (data) => {
+        if (this.props.onRoomParticipantDidConnect) { this.props.onRoomParticipantDidConnect(data) }
       }),
-      this._eventEmitter.addListener('roomParticipantDidDisconnect', data => {
-        if (this.props.onRoomParticipantDidDisconnect) {
-          this.props.onRoomParticipantDidDisconnect(data)
-        }
+      this._eventEmitter.addListener('roomParticipantDidDisconnect', (data) => {
+        if (this.props.onRoomParticipantDidDisconnect) { this.props.onRoomParticipantDidDisconnect(data) }
       }),
-      this._eventEmitter.addListener('participantAddedVideoTrack', data => {
-        if (this.props.onParticipantAddedVideoTrack) {
-          this.props.onParticipantAddedVideoTrack(data)
-        }
+      this._eventEmitter.addListener('participantAddedVideoTrack', (data) => {
+        if (this.props.onParticipantAddedVideoTrack) { this.props.onParticipantAddedVideoTrack(data) }
       }),
-      this._eventEmitter.addListener('participantAddedDataTrack', data => {
-        if (this.props.onParticipantAddedDataTrack) {
-          this.props.onParticipantAddedDataTrack(data)
-        }
+      this._eventEmitter.addListener('participantRemovedVideoTrack', (data) => {
+        if (this.props.onParticipantRemovedVideoTrack) { this.props.onParticipantRemovedVideoTrack(data) }
       }),
-      this._eventEmitter.addListener('participantRemovedDataTrack', data => {
-        if (this.props.onParticipantRemovedDataTrack) {
-          this.props.onParticipantRemovedDataTrack(data)
-        }
+      this._eventEmitter.addListener('participantAddedAudioTrack', (data) => {
+        if (this.props.onParticipantAddedAudioTrack) { this.props.onParticipantAddedAudioTrack(data) }
       }),
-      this._eventEmitter.addListener('participantRemovedVideoTrack', data => {
-        if (this.props.onParticipantRemovedVideoTrack) {
-          this.props.onParticipantRemovedVideoTrack(data)
-        }
+      this._eventEmitter.addListener('participantRemovedAudioTrack', (data) => {
+        if (this.props.onParticipantRemovedAudioTrack) { this.props.onParticipantRemovedAudioTrack(data) }
       }),
-      this._eventEmitter.addListener('participantAddedAudioTrack', data => {
-        if (this.props.onParticipantAddedAudioTrack) {
-          this.props.onParticipantAddedAudioTrack(data)
-        }
+      this._eventEmitter.addListener('participantEnabledVideoTrack', (data) => {
+        if (this.props.onParticipantEnabledVideoTrack) { this.props.onParticipantEnabledVideoTrack(data) }
       }),
-      this._eventEmitter.addListener('participantRemovedAudioTrack', data => {
-        if (this.props.onParticipantRemovedAudioTrack) {
-          this.props.onParticipantRemovedAudioTrack(data)
-        }
+      this._eventEmitter.addListener('participantDisabledVideoTrack', (data) => {
+        if (this.props.onParticipantDisabledVideoTrack) { this.props.onParticipantDisabledVideoTrack(data) }
       }),
-      this._eventEmitter.addListener('participantEnabledVideoTrack', data => {
-        if (this.props.onParticipantEnabledVideoTrack) {
-          this.props.onParticipantEnabledVideoTrack(data)
-        }
+      this._eventEmitter.addListener('participantEnabledAudioTrack', (data) => {
+        if (this.props.onParticipantEnabledAudioTrack) { this.props.onParticipantEnabledAudioTrack(data) }
       }),
-      this._eventEmitter.addListener('participantDisabledVideoTrack', data => {
-        if (this.props.onParticipantDisabledVideoTrack) {
-          this.props.onParticipantDisabledVideoTrack(data)
-        }
+      this._eventEmitter.addListener('participantDisabledAudioTrack', (data) => {
+        if (this.props.onParticipantDisabledAudioTrack) { this.props.onParticipantDisabledAudioTrack(data) }
       }),
-      this._eventEmitter.addListener('participantEnabledAudioTrack', data => {
-        if (this.props.onParticipantEnabledAudioTrack) {
-          this.props.onParticipantEnabledAudioTrack(data)
-        }
+      this._eventEmitter.addListener('cameraDidStart', (data) => {
+        if (this.props.onCameraDidStart) { this.props.onCameraDidStart(data) }
       }),
-      this._eventEmitter.addListener('participantDisabledAudioTrack', data => {
-        if (this.props.onParticipantDisabledAudioTrack) {
-          this.props.onParticipantDisabledAudioTrack(data)
-        }
+      this._eventEmitter.addListener('cameraWasInterrupted', (data) => {
+        if (this.props.onCameraWasInterrupted) { this.props.onCameraWasInterrupted(data) }
       }),
-      this._eventEmitter.addListener('dataTrackMessageReceived', data => {
-        if (this.props.onDataTrackMessageReceived) {
-          this.props.onDataTrackMessageReceived(data)
-        }
+      this._eventEmitter.addListener('cameraDidStopRunning', (data) => {
+        if (this.props.onCameraDidStopRunning) { this.props.onCameraDidStopRunning(data) }
       }),
-      this._eventEmitter.addListener('cameraDidStart', data => {
-        if (this.props.onCameraDidStart) {
-          this.props.onCameraDidStart(data)
-        }
-      }),
-      this._eventEmitter.addListener('cameraWasInterrupted', data => {
-        if (this.props.onCameraWasInterrupted) {
-          this.props.onCameraWasInterrupted(data)
-        }
-      }),
-      this._eventEmitter.addListener('cameraInterruptionEnded', data => {
-        if (this.props.onCameraInterruptionEnded) {
-          this.props.onCameraInterruptionEnded(data)
-        }
-      }),
-      this._eventEmitter.addListener('cameraDidStopRunning', data => {
-        if (this.props.onCameraDidStopRunning) {
-          this.props.onCameraDidStopRunning(data)
-        }
-      }),
-      this._eventEmitter.addListener('statsReceived', data => {
-        if (this.props.onStatsReceived) {
-          this.props.onStatsReceived(data)
-        }
+      this._eventEmitter.addListener('statsReceived', (data) => {
+        if (this.props.onStatsReceived) { this.props.onStatsReceived(data) }
       })
     ]
   }

@@ -24,8 +24,7 @@
 - (id)toJSON {
   return @{
     @"trackSid": self.trackSid,
-    @"trackName": self.trackName,
-    @"enabled": @(self.trackEnabled)
+    @"trackName": self.trackName
   };
 }
 

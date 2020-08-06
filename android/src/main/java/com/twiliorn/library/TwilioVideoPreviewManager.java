@@ -17,9 +17,6 @@ import com.facebook.react.uimanager.annotations.ReactProp;
 
 import java.util.Map;
 
-import org.webrtc.RendererCommon;
-
-import static com.twiliorn.library.RNVideoViewGroup.Events.ON_FRAME_DIMENSIONS_CHANGED;
 
 public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPreview> {
 
@@ -28,25 +25,6 @@ public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPrev
     @Override
     public String getName() {
         return REACT_CLASS;
-    }
-
-    @ReactProp(name = "scaleType")
-    public void setScaleType(TwilioVideoPreview view, @Nullable String scaleType) {
-      if (scaleType.equals("fit")) {
-        view.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
-      } else {
-        view.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
-      }
-    }
-
-    @Override
-    @Nullable
-    public Map getExportedCustomDirectEventTypeConstants() {
-        Map<String, Map<String, String>> map = MapBuilder.of(
-                ON_FRAME_DIMENSIONS_CHANGED, MapBuilder.of("registrationName", ON_FRAME_DIMENSIONS_CHANGED)
-        );
-
-        return map;
     }
 
     @Override
